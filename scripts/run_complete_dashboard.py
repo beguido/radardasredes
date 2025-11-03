@@ -1,14 +1,20 @@
 import sys
 sys.path.insert(0, '.')
+from scripts.analytics_engine import AnalyticsEngine
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 import pandas as pd
 import sqlite3
 from datetime import datetime, timedelta
-from pathlib import Path
-
 import os
+
+# Datas importantes
+DATA_ANO_NOVO_2026 = datetime(2026, 1, 1)
+DATA_INICIO_CAMPANHA_2026 = datetime(2026, 8, 16)
+DATA_ELEICAO_1T_2026 = datetime(2026, 10, 4)
+DATA_ELEICAO_2T_2026 = datetime(2026, 10, 25)
+
 app = Dash(__name__, 
            external_stylesheets=[dbc.themes.BOOTSTRAP],
            assets_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets'))
@@ -22,7 +28,7 @@ app.index_string = '''
         {%favicon%}
         {%css%}
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
             
             body { 
                 background: #0f1419;
@@ -58,7 +64,7 @@ app.index_string = '''
                 margin: 10px;
                 border: 1px solid #2d3748;
                 transition: all 0.2s ease;
-                min-height: 380px;
+                min-height: 420px;
             }
             
             .profile-card:hover {
@@ -163,6 +169,34 @@ app.index_string = '''
                 padding-bottom: 12px;
                 border-bottom: 1px solid #2d3748;
             }
+            
+            .projection-mini {
+                background: #0f1419;
+                border-radius: 8px;
+                padding: 12px;
+                margin-top: 12px;
+            }
+            
+            .projection-mini-label {
+                font-size: 10px;
+                color: #64748b;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+            
+            .projection-mini-value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #3b82f6;
+            }
+            
+            .score-badge {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                margin-left: 8px;
+            }
         </style>
     </head>
     <body>
@@ -178,17 +212,20 @@ app.index_string = '''
 
 conn = sqlite3.connect('data/social_monitor.db')
 df = pd.read_sql_query("SELECT * FROM instagram_profiles ORDER BY collected_at", conn)
+conn.close()
 
 if len(df) > 0:
     df['collected_at'] = pd.to_datetime(df['collected_at'], format='mixed')
     df = df.sort_values('collected_at')
+    
+    # Analytics engine
+    analytics = AnalyticsEngine(df)
     
     profiles = df['username'].unique()
     min_dates = {p: df[df['username'] == p]['collected_at'].min() for p in profiles}
     start_date = max(min_dates.values())
     df_filtered = df[df['collected_at'] >= start_date]
     
-    # Pega dados mais recentes COM engajamento
     df_with_engagement = df[df['avg_engagement_rate'] > 0]
     if len(df_with_engagement) > 0:
         latest = df_with_engagement.groupby('username').last().reset_index()
@@ -219,12 +256,17 @@ if len(df) > 0:
             month_change_abs = current - month_old
             month_change_pct = (month_change_abs / month_old * 100)
         
-        # Usa foto local se existir
         photo_path = row.get('profile_picture_url', '')
         if photo_path and photo_path.startswith('/static'):
             photo_url = app.get_asset_url(photo_path.replace('/static/', ''))
         else:
             photo_url = ''
+        
+        # Projeções
+        proj_eleicao = analytics.project_followers(username, DATA_ELEICAO_1T_2026)
+        proj_ano_novo = analytics.project_followers(username, DATA_ANO_NOVO_2026)
+        proj_campanha = analytics.project_followers(username, DATA_INICIO_CAMPANHA_2026)
+        score = analytics.calculate_performance_score(username)
         
         profiles_data.append({
             'username': username,
@@ -234,7 +276,11 @@ if len(df) > 0:
             'month_change_pct': month_change_pct,
             'month_change_abs': month_change_abs,
             'engagement': row.get('avg_engagement_rate', 0),
-            'photo': photo_url
+            'photo': photo_url,
+            'proj_eleicao': proj_eleicao,
+            'proj_ano_novo': proj_ano_novo,
+            'proj_campanha': proj_campanha,
+            'score': score
         })
     
     names_map = {
@@ -243,6 +289,9 @@ if len(df) > 0:
         'leosiqueirabr': 'Leo Siqueira',
         'marinahelenabr': 'Marina Helena'
     }
+    
+    colors = {'marinahelenabr': '#ef4444', 'leosiqueirabr': '#3b82f6', 
+              'crismonteirosp': '#10b981', 'adriventurasp': '#f59e0b'}
     
     cris_profile = [p for p in profiles_data if 'crismont' in p['username']][0]
     other_profiles = sorted([p for p in profiles_data if 'crismont' not in p['username']], 
@@ -266,11 +315,16 @@ if len(df) > 0:
             eng_class = 'engagement-low'
             eng_emoji = '📉'
         
+        score_color = '#10b981' if p['score'] >= 50 else '#f59e0b' if p['score'] >= 30 else '#ef4444'
+        
         card = html.Div([
             html.Div([
                 html.Img(src=p['photo'], className='profile-avatar') if p['photo'] else html.Div('👤', style={'width': '64px', 'height': '64px', 'borderRadius': '50%', 'background': 'linear-gradient(135deg, #3b82f6, #8b5cf6)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '24px', 'marginRight': '16px'}),
                 html.Div([
-                    html.Div(name, style={'fontSize': '18px', 'fontWeight': '600', 'color': '#e2e8f0'}),
+                    html.Div([
+                        html.Span(name, style={'fontSize': '18px', 'fontWeight': '600', 'color': '#e2e8f0'}),
+                        html.Span(f"{p['score']:.0f}", className='score-badge', style={'background': score_color, 'color': 'white'})
+                    ]),
                     html.Div(f"@{p['username'].replace('sp', '').replace('br', '')}", 
                             style={'fontSize': '13px', 'color': '#94a3b8'})
                 ])
@@ -296,16 +350,33 @@ if len(df) > 0:
                     html.Div(f"+{p['month_change_pct']:.2f}%", className='metric-value'),
                     html.Div(f"+{p['month_change_abs']:,.0f}", className='metric-absolute')
                 ], className='metric-item')
-            ], className='metric-row')
+            ], className='metric-row'),
+            
+            html.Div([
+                html.Div("🗳️ ELEIÇÃO 1º TURNO (04/10/2026)", className='projection-mini-label'),
+                html.Div(f"{p['proj_eleicao']:,.0f}", className='projection-mini-value', style={'fontSize': '18px'}),
+                html.Div("seguidores projetados", style={'fontSize': '10px', 'color': '#64748b', 'marginTop': '2px'})
+            ], className='projection-mini'),
+            
+            html.Div([
+                html.Div([
+                    html.Div([
+                        html.Div("📅 1º Jan 2026", style={'fontSize': '9px', 'color': '#64748b', 'marginBottom': '2px'}),
+                        html.Div(f"{p['proj_ano_novo']:,.0f}", style={'fontSize': '13px', 'fontWeight': '600', 'color': '#6366f1'})
+                    ], style={'flex': 1}),
+                    html.Div([
+                        html.Div("📢 Campanha", style={'fontSize': '9px', 'color': '#64748b', 'marginBottom': '2px'}),
+                        html.Div(f"{p['proj_campanha']:,.0f}", style={'fontSize': '13px', 'fontWeight': '600', 'color': '#8b5cf6'})
+                    ], style={'flex': 1})
+                ], style={'display': 'flex', 'gap': '8px'})
+            ], style={'marginTop': '8px', 'padding': '8px', 'background': '#0a0e1a', 'borderRadius': '6px'})
             
         ], className=f'profile-card {"primary" if is_primary else ""}')
         
         profile_cards.append(dbc.Col(card, width=12, lg=3))
     
-    # Gráficos (mesmo código de antes)
+    # Gráfico de Seguidores
     fig_followers = go.Figure()
-    colors = {'marinahelenabr': '#ef4444', 'leosiqueirabr': '#3b82f6', 
-              'crismonteirosp': '#10b981', 'adriventurasp': '#f59e0b'}
     
     for username in df_filtered['username'].unique():
         data = df_filtered[df_filtered['username'] == username].sort_values('collected_at')
@@ -332,6 +403,7 @@ if len(df) > 0:
         legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
     )
     
+    # Gráfico de Engajamento
     fig_engagement = go.Figure()
     
     engagement_data = []
@@ -370,7 +442,7 @@ if len(df) > 0:
         html.Div([
             html.Div([
                 html.H1("RADAR DAS REDES", className='main-title'),
-                html.P("Análise Competitiva de Redes Sociais", className='subtitle')
+                html.P("Análise Competitiva & Projeções Eleitorais 2026", className='subtitle')
             ], style={'maxWidth': '1600px', 'margin': '0 auto'})
         ], className='header-container'),
         
@@ -394,11 +466,9 @@ if len(df) > 0:
         
     ], style={'minHeight': '100vh', 'paddingBottom': '60px'})
 
-conn.close()
-
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("RADAR DAS REDES - Dashboard Premium")
+    print("RADAR DAS REDES - Dashboard Completo")
     print("="*60)
     print("📍 http://127.0.0.1:8050")
     print("="*60 + "\n")

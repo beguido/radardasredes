@@ -1,195 +1,135 @@
-"""
-Scraper de Instagram usando Apify
-"""
-import time
-from typing import List, Dict
+import os
 from apify_client import ApifyClient
+from dotenv import load_dotenv
+import sqlite3
+from datetime import datetime
 
-from config import settings
-from database import db
+load_dotenv()
 
+client = ApifyClient(os.getenv('APIFY_API_KEY'))
 
-class InstagramScraper:
-    """Scraper profissional de Instagram via Apify"""
+def scrape_instagram_profile(username):
+    """Scrape completo de perfil do Instagram via Apify"""
     
-    def __init__(self, api_token: str = None):
-        self.api_token = api_token or settings.APIFY_API_TOKEN
-        self.client = ApifyClient(self.api_token)
-        self.scraper_id = settings.APIFY_INSTAGRAM_SCRAPER
+    run_input = {
+        "directUrls": [f"https://www.instagram.com/{username}/"],
+        "resultsType": "posts",
+        "resultsLimit": 12,
+        "searchType": "user",
+        "searchLimit": 1,
+        "addParentData": True,
+    }
     
-    def scrape_profile(self, username: str) -> Dict:
-        """
-        Scrape de um perfil do Instagram
+    print(f"🔍 Coletando dados de @{username}...")
+    
+    try:
+        run = client.actor("apify/instagram-scraper").call(run_input=run_input)
         
-        Args:
-            username: Nome de usuário sem @
-            
-        Returns:
-            Dicionário com dados do perfil
-        """
-        # Remove @ se presente
-        username = username.replace('@', '')
+        results = []
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            results.append(item)
         
-        print(f"🔍 Coletando dados de @{username}...")
+        if not results:
+            print(f"❌ Nenhum dado encontrado para @{username}")
+            return None
         
-        # Configuração do scraper
-        run_input = {
-            "usernames": [username],
-            "resultsLimit": 1,
-            "resultsType": "profiles",
-            "searchLimit": 1,
-            "searchType": "user",
-            "addParentData": False,
+        first_item = results[0]
+        
+        profile_data = {
+            'username': first_item.get('ownerUsername', username),
+            'followers': first_item.get('followersCount', 0),
+            'following': first_item.get('followsCount', 0),
+            'posts_count': first_item.get('postsCount', 0),
+            'profile_picture': first_item.get('profilePicUrl', ''),
         }
         
-        try:
-            # Executar o scraper
-            run = self.client.actor(self.scraper_id).call(run_input=run_input)
-            
-            # Aguardar e pegar resultados
-            results = []
-            for item in self.client.dataset(run["defaultDatasetId"]).iterate_items():
-                results.append(item)
-            
-            if not results:
-                raise ValueError(f"Nenhum dado encontrado para @{username}")
-            
-            profile_data = results[0]
-            
-            # Enriquecer com métricas calculadas (se tiver posts)
-            if 'latestPosts' in profile_data and profile_data['latestPosts']:
-                posts = profile_data['latestPosts'][:12]  # Últimos 12 posts
-                
-                total_likes = sum(post.get('likesCount', 0) for post in posts)
-                total_comments = sum(post.get('commentsCount', 0) for post in posts)
-                
-                avg_likes = total_likes / len(posts) if posts else 0
-                avg_comments = total_comments / len(posts) if posts else 0
-                
-                # Taxa de engajamento = (likes + comments) / followers
-                followers = profile_data.get('followersCount', 1)
-                if followers > 0:
-                    engagement_rate = ((avg_likes + avg_comments) / followers) * 100
-                else:
-                    engagement_rate = 0
-                
-                profile_data['avg_likes'] = round(avg_likes, 2)
-                profile_data['avg_comments'] = round(avg_comments, 2)
-                profile_data['engagement_rate'] = round(engagement_rate, 2)
-            
-            print(f"✅ Dados coletados: @{username} - {profile_data.get('followersCount', 0):,} seguidores")
-            
-            return profile_data
-            
-        except Exception as e:
-            print(f"❌ Erro ao coletar @{username}: {str(e)}")
-            raise e
-    
-    def scrape_multiple_profiles(self, usernames: List[str], 
-                                 primary_username: str = None) -> List[Dict]:
-        """
-        Scrape de múltiplos perfis
+        posts_data = []
+        for item in results:
+            if item.get('likesCount') is not None:
+                posts_data.append({
+                    'likes': item.get('likesCount', 0),
+                    'comments': item.get('commentsCount', 0),
+                })
         
-        Args:
-            usernames: Lista de usernames
-            primary_username: Username principal (para marcar no banco)
+        if profile_data['followers'] == 0:
+            print(f"❌ Dados do perfil incompletos")
+            return None
+        
+        if posts_data and profile_data['followers'] > 0:
+            total_likes = sum(p['likes'] for p in posts_data)
+            total_comments = sum(p['comments'] for p in posts_data)
+            total_interactions = total_likes + total_comments
             
-        Returns:
-            Lista de dicionários com dados dos perfis
-        """
-        results = []
+            avg_engagement = (total_interactions / len(posts_data)) / profile_data['followers'] * 100
+            
+            profile_data['avg_engagement_rate'] = avg_engagement
+            profile_data['total_likes'] = total_likes
+            profile_data['total_comments'] = total_comments
+            profile_data['posts_analyzed'] = len(posts_data)
+        else:
+            profile_data['avg_engagement_rate'] = 0
+            profile_data['total_likes'] = 0
+            profile_data['total_comments'] = 0
+            profile_data['posts_analyzed'] = 0
         
-        for i, username in enumerate(usernames, 1):
-            try:
-                start_time = time.time()
-                
-                # Coletar dados
-                profile_data = self.scrape_profile(username)
-                
-                # Determinar se é perfil principal
-                is_primary = (username.replace('@', '') == primary_username)
-                
-                # Salvar no banco
-                db.save_instagram_profile(profile_data, is_primary=is_primary)
-                
-                execution_time = time.time() - start_time
-                
-                # Log de sucesso
-                db.log_collection(
-                    platform='instagram',
-                    username=username,
-                    status='success',
-                    records_collected=1,
-                    execution_time=execution_time
-                )
-                
-                results.append(profile_data)
-                
-                # Aguardar entre requisições (rate limiting gentil)
-                if i < len(usernames):
-                    wait_time = settings.COLLECTION_SETTINGS['wait_between_profiles']
-                    print(f"⏳ Aguardando {wait_time}s antes do próximo perfil...")
-                    time.sleep(wait_time)
-                    
-            except Exception as e:
-                # Log de erro
-                db.log_collection(
-                    platform='instagram',
-                    username=username,
-                    status='error',
-                    error_message=str(e)
-                )
-                print(f"❌ Erro ao processar @{username}: {str(e)}")
-                continue
+        print(f"✅ @{username}: {profile_data['followers']:,} seguidores")
+        print(f"   📊 Engajamento: {profile_data['avg_engagement_rate']:.2f}%")
+        print(f"   ❤️  Total likes: {profile_data['total_likes']:,}")
+        print(f"   💬 Total comentários: {profile_data['total_comments']:,}")
+        print(f"   📸 Foto: {profile_data['profile_picture'][:50]}...")
         
-        return results
-    
-    def get_account_info(self) -> Dict:
-        """Verifica informações da conta Apify"""
-        try:
-            user = self.client.user().get()
-            return {
-                'username': user.get('username'),
-                'email': user.get('email'),
-                'plan': user.get('plan'),
-                'credits': 'Ver painel',
-            }
-        except Exception as e:
-            return {'error': str(e)}
+        return profile_data
+        
+    except Exception as e:
+        print(f"❌ Erro ao coletar @{username}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
+def save_to_database(profile_data):
+    """Salva os dados no banco"""
+    conn = sqlite3.connect('data/social_monitor.db')
+    cursor = conn.cursor()
+    
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    cursor.execute('''
+        INSERT INTO instagram_profiles 
+        (username, followers, following, posts_count, engagement_rate, 
+         profile_picture_url, avg_engagement_rate, total_likes, total_comments, posts_analyzed, collected_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        profile_data['username'],
+        profile_data['followers'],
+        profile_data['following'],
+        profile_data['posts_count'],
+        profile_data['avg_engagement_rate'],
+        profile_data['profile_picture'],
+        profile_data['avg_engagement_rate'],
+        profile_data['total_likes'],
+        profile_data['total_comments'],
+        profile_data['posts_analyzed'],
+        now
+    ))
+    
+    conn.commit()
+    conn.close()
 
-def run_instagram_collection():
-    """
-    Função auxiliar para executar coleta completa do Instagram
-    """
-    print("=" * 60)
-    print("🚀 INICIANDO COLETA DE DADOS - INSTAGRAM")
-    print("=" * 60)
+if __name__ == '__main__':
+    profiles = ['crismonteirosp', 'marinahelenabr', 'leosiqueirabr', 'adriventurasp']
     
-    scraper = InstagramScraper()
+    print("\n" + "="*60)
+    print("📸 INSTAGRAM SCRAPER - Coleta Completa")
+    print("="*60 + "\n")
     
-    # Verificar conta Apify
-    account_info = scraper.get_account_info()
-    if 'error' not in account_info:
-        print(f"\n💳 Conta Apify: {account_info.get('username')}")
-        print(f"📊 Plano: {account_info.get('plan')}")
-        print("💰 Créditos: Ver painel")
+    for username in profiles:
+        data = scrape_instagram_profile(username)
+        if data:
+            save_to_database(data)
+            print(f"💾 Dados salvos no banco!\n")
+        else:
+            print(f"⚠️  Falha ao coletar dados\n")
     
-    # Coletar dados
-    profiles = settings.INSTAGRAM_PROFILES
-    primary = settings.PRIMARY_PROFILE
-    
-    print(f"📋 Perfis para coletar: {len(profiles)}")
-    print(f"⭐ Perfil principal: @{primary}\n")
-    
-    results = scraper.scrape_multiple_profiles(profiles, primary_username=primary)
-    
-    print("\n" + "=" * 60)
-    print(f"✅ COLETA FINALIZADA: {len(results)}/{len(profiles)} perfis coletados")
-    print("=" * 60)
-    
-    return results
-
-
-if __name__ == "__main__":
-    run_instagram_collection()
+    print("="*60)
+    print("✅ Coleta finalizada!")
+    print("="*60)
