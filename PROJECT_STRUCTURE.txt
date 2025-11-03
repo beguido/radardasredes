@@ -1,0 +1,9 @@
+.
+  scripts
+  dashboard
+    components
+    assets
+  scrapers
+  database
+  utils
+  config
