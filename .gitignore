@@ -27,7 +27,6 @@ wheels/
 *.egg
 
 # Database
-*.db
 *.sqlite
 *.sqlite3
 data/
