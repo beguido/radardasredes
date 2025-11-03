@@ -29,7 +29,6 @@ wheels/
 # Database
 *.sqlite
 *.sqlite3
-data/
 
 # IDEs
 .vscode/
@@ -49,3 +48,4 @@ data/
 .pytest_cache/
 .coverage
 htmlcov/
+!data/social_monitor.db
