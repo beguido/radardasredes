@@ -860,3 +860,6 @@ if __name__ == '__main__':
     print("📍 http://127.0.0.1:8050")
     print("="*60 + "\n")
     app.run_server(debug=False, host='127.0.0.1', port=8050)
+
+# Expõe server para o Render
+server = app.server

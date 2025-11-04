@@ -1,17 +1,9 @@
-# Dashboard
 dash==2.14.2
 dash-bootstrap-components==1.5.0
 plotly==5.18.0
-
-# Data processing
 pandas==2.1.4
-numpy==1.26.4
-
-# Analytics
-scipy==1.13.1
-
-# API Client
+apify-client==1.6.3
+python-dotenv==1.0.0
 requests==2.31.0
-
-# Database
-sqlite3
+scipy==1.11.4
+gunicorn==21.2.0
