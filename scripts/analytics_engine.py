@@ -68,7 +68,9 @@ class AnalyticsEngine:
         current_days = user_data['days'].max()
         projected = slope * (current_days + days_until_target) + intercept
         
-        # Não permite valores negativos
+        # Não permite valores negativos ou NaN
+        if pd.isna(projected):
+            return user_data.iloc[-1]['followers']
         return max(0, int(projected))
     
     def calculate_momentum(self, username):
