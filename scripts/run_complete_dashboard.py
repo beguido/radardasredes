@@ -2,6 +2,8 @@ import sys
 sys.path.insert(0, '.')
 from scripts.analytics_engine import AnalyticsEngine
 from dash import Dash, html, dcc
+from dash.dependencies import Input, Output
+from dash import callback_context
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 import pandas as pd
@@ -635,42 +637,19 @@ if len(df) > 0:
             # Seção de Canais Monitorados
             html.H2("Canais Monitorados", className='section-title'),
             html.Div([
-                # WhatsApp
-                html.Div([
-                    html.Div("📱", style={'fontSize': '32px', 'marginBottom': '8px'}),
-                    html.Div("WhatsApp", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
-                    html.Div(f"{whatsapp_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
-                    html.Div(f"+{whatsapp_change:,}" if whatsapp_change >= 0 else f"{whatsapp_change:,}", 
-                            style={'fontSize': '12px', 'color': '#10b981' if whatsapp_change >= 0 else '#ef4444', 'marginTop': '4px'})
-                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
-                
-                # Endereços
-                html.Div([
-                    html.Div("🏠", style={'fontSize': '32px', 'marginBottom': '8px'}),
-                    html.Div("Endereços", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
-                    html.Div(f"{enderecos_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
-                    html.Div(f"+{enderecos_change:,}" if enderecos_change >= 0 else f"{enderecos_change:,}", 
-                            style={'fontSize': '12px', 'color': '#10b981' if enderecos_change >= 0 else '#ef4444', 'marginTop': '4px'})
-                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
-                
-                # Ofícios
-                html.Div([
-                    html.Div("📄", style={'fontSize': '32px', 'marginBottom': '8px'}),
-                    html.Div("Ofícios", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
-                    html.Div(f"{oficios_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
-                    html.Div(f"+{oficios_change:,}" if oficios_change >= 0 else f"{oficios_change:,}", 
-                            style={'fontSize': '12px', 'color': '#10b981' if oficios_change >= 0 else '#ef4444', 'marginTop': '4px'})
-                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
-                
-                # Instagram
-                html.Div([
-                    html.Div("📸", style={'fontSize': '32px', 'marginBottom': '8px'}),
-                    html.Div("Instagram", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
-                    html.Div(f"{latest['followers'].sum():,.0f}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
-                    html.Div("4 perfis", style={'fontSize': '12px', 'color': '#9ca3af', 'marginTop': '4px'})
-                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
-                
-            ], style={'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit, minmax(180px, 1fr))', 'gap': '16px', 'marginBottom': '48px'}),
+                html.Div([html.Div("📸", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("Instagram", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div(f"{int(profiles_data[0]['followers']):,}", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("@crismonteirosp", style={'fontSize': '11px', 'color': '#6b7280', 'marginTop': '4px'})], id='card-instagram', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("🐦", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("Twitter", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("14,923", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("+59", style={'fontSize': '11px', 'color': '#10b981', 'marginTop': '4px'})], id='card-twitter', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("👩‍💼", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("LinkedIn", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("6,732", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("+3", style={'fontSize': '11px', 'color': '#10b981', 'marginTop': '4px'})], id='card-linkedin', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("🎥", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("YouTube", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("1,000", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("=", style={'fontSize': '11px', 'color': '#9ca3af', 'marginTop': '4px'})], id='card-youtube', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("👵", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("Facebook", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("32,786", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("+238", style={'fontSize': '11px', 'color': '#10b981', 'marginTop': '4px'})], id='card-facebook', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("💃", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("TikTok", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("72,772", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("+3", style={'fontSize': '11px', 'color': '#10b981', 'marginTop': '4px'})], id='card-tiktok', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("✉️", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("E-mail", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div("5,278", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div("+21", style={'fontSize': '11px', 'color': '#10b981', 'marginTop': '4px'})], id='card-email', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("📱", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("WhatsApp", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div(f"{whatsapp_total:,}", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div(f"+{whatsapp_change:,}" if whatsapp_change >= 0 else f"{whatsapp_change:,}", style={'fontSize': '11px', 'color': '#10b981' if whatsapp_change >= 0 else '#ef4444', 'marginTop': '4px'})], id='card-whatsapp', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("🏠", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("Endereços", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div(f"{enderecos_total:,}", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div(f"+{enderecos_change:,}" if enderecos_change >= 0 else f"{enderecos_change:,}", style={'fontSize': '11px', 'color': '#10b981' if enderecos_change >= 0 else '#ef4444', 'marginTop': '4px'})], id='card-enderecos', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+                html.Div([html.Div("📄", style={'fontSize': '28px', 'marginBottom': '6px'}), html.Div("Ofícios", style={'fontSize': '13px', 'color': '#9ca3af', 'marginBottom': '4px'}), html.Div(f"{oficios_total:,}", style={'fontSize': '20px', 'fontWeight': '700', 'color': '#f7fafc'}), html.Div(f"+{oficios_change:,}" if oficios_change >= 0 else f"{oficios_change:,}", style={'fontSize': '11px', 'color': '#10b981' if oficios_change >= 0 else '#ef4444', 'marginTop': '4px'})], id='card-oficios', style={'padding': '20px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center', 'cursor': 'pointer'}),
+            ], style={'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit, minmax(140px, 1fr))', 'gap': '12px', 'marginBottom': '48px'}),
+            
+            html.Div(id='expanded-chart', style={'marginBottom': '40px'}),
             
             html.H2("Perfis Instagram Monitorados", className='section-title'),
             dbc.Row(profile_cards),
@@ -710,6 +689,72 @@ if len(df) > 0:
         ], style={'maxWidth': '1600px', 'margin': '0 auto', 'padding': '20px'})
         
     ], style={'minHeight': '100vh', 'paddingBottom': '60px'})
+
+
+    # Callbacks para cards clicáveis
+    @app.callback(
+        Output('expanded-chart', 'children'),
+        [Input('card-instagram', 'n_clicks'),
+         Input('card-twitter', 'n_clicks'),
+         Input('card-linkedin', 'n_clicks'),
+         Input('card-youtube', 'n_clicks'),
+         Input('card-facebook', 'n_clicks'),
+         Input('card-tiktok', 'n_clicks'),
+         Input('card-email', 'n_clicks'),
+         Input('card-whatsapp', 'n_clicks'),
+         Input('card-enderecos', 'n_clicks'),
+         Input('card-oficios', 'n_clicks')]
+    )
+    def show_channel_chart(*clicks):
+        ctx = callback_context
+        if not ctx.triggered or all(c is None for c in clicks):
+            return html.Div()
+        
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        channels = {
+            'card-instagram': '📸 Instagram',
+            'card-twitter': '🐦 Twitter',
+            'card-linkedin': '👩‍💼 LinkedIn',
+            'card-youtube': '🎥 YouTube',
+            'card-facebook': '👵 Facebook',
+            'card-tiktok': '💃 TikTok',
+            'card-email': '✉️ E-mail',
+            'card-whatsapp': '📱 WhatsApp',
+            'card-enderecos': '🏠 Endereços',
+            'card-oficios': '📄 Ofícios'
+        }
+        
+        if button_id not in channels:
+            return html.Div()
+        
+        title = channels[button_id]
+        
+        if button_id == 'card-instagram':
+            return html.Div([
+                html.Div([
+                    html.H3(f"Evolução - {title}", style={'fontSize': '20px', 'fontWeight': '600', 'color': '#f7fafc'}),
+                    dcc.Graph(figure=fig_followers, config={'displayModeBar': True, 'displaylogo': False})
+                ], style={'background': '#1f2937', 'padding': '24px', 'borderRadius': '12px', 'marginBottom': '16px'}),
+                html.Button('✕ Fechar', id='btn-close', style={'background': '#374151', 'color': '#f7fafc', 'border': 'none', 'padding': '12px 24px', 'borderRadius': '8px', 'cursor': 'pointer'})
+            ])
+        
+        return html.Div([
+            html.Div([
+                html.H3(f"Evolução - {title}", style={'fontSize': '20px', 'fontWeight': '600', 'color': '#f7fafc', 'marginBottom': '12px'}),
+                html.P(f"Gráfico de {title} disponível em breve", style={'color': '#9ca3af', 'fontSize': '14px'}),
+                html.P("🚀 Aguardando scrapers automáticos", style={'color': '#6b7280', 'fontSize': '12px', 'marginTop': '8px'})
+            ], style={'background': '#1f2937', 'padding': '24px', 'borderRadius': '12px', 'marginBottom': '16px'}),
+            html.Button('✕ Fechar', id='btn-close', style={'background': '#374151', 'color': '#f7fafc', 'border': 'none', 'padding': '12px 24px', 'borderRadius': '8px', 'cursor': 'pointer'})
+        ])
+    
+    @app.callback(
+        Output('expanded-chart', 'children', allow_duplicate=True),
+        Input('btn-close', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def close_chart(n):
+        return html.Div() if n else html.Div()
+
 
 if __name__ == '__main__':
     print("\n" + "="*60)
