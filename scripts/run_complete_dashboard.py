@@ -220,6 +220,27 @@ if len(df) > 0:
     
     # Analytics engine
     analytics = AnalyticsEngine(df)
+    # Dados do Notion
+    conn_notion = sqlite3.connect('data/social_monitor.db')
+    notion_latest = pd.read_sql_query("""
+        SELECT whatsapp, enderecos, oficios, collected_at
+        FROM notion_stats
+        ORDER BY id DESC
+        LIMIT 2
+    """, conn_notion)
+    conn_notion.close()
+    
+    notion_current = notion_latest.iloc[0] if len(notion_latest) > 0 else None
+    notion_previous = notion_latest.iloc[1] if len(notion_latest) > 1 else None
+    
+    whatsapp_total = notion_current['whatsapp'] if notion_current is not None else 0
+    enderecos_total = notion_current['enderecos'] if notion_current is not None else 0
+    oficios_total = notion_current['oficios'] if notion_current is not None else 0
+    
+    whatsapp_change = whatsapp_total - (notion_previous['whatsapp'] if notion_previous is not None else whatsapp_total)
+    enderecos_change = enderecos_total - (notion_previous['enderecos'] if notion_previous is not None else enderecos_total)
+    oficios_change = oficios_total - (notion_previous['oficios'] if notion_previous is not None else oficios_total)
+
     
     profiles = df['username'].unique()
     min_dates = {p: df[df['username'] == p]['collected_at'].min() for p in profiles}
