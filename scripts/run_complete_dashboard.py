@@ -222,6 +222,107 @@ if len(df) > 0:
     
     # Analytics engine
     analytics = AnalyticsEngine(df)
+    # === PROJEÇÕES PARA ELEIÇÃO 2026 ===
+    from datetime import datetime, timedelta
+    import numpy as np
+    
+    election_date = datetime(2026, 10, 4)
+    today = datetime.now()
+    days_until_election = (election_date - today).days
+    
+    # Calcula projeções para cada perfil
+    projections = []
+    for profile in profiles_data:
+        username = profile['username']
+        current_followers = profile['followers']
+        
+        # Taxa de crescimento dos últimos 30 dias (anualizada)
+        growth_30d = profile.get('month_change_pct', 0)
+        daily_growth_rate = (growth_30d / 100) / 30
+        
+        # Projeção linear
+        projected_followers = int(current_followers * (1 + daily_growth_rate * days_until_election))
+        growth_needed = projected_followers - current_followers
+        
+        projections.append({
+            'name': names_map.get(username, username),
+            'username': username,
+            'current': current_followers,
+            'projected': projected_followers,
+            'growth': growth_needed,
+            'daily_rate': daily_growth_rate,
+            'color': colors.get(username, '#6366f1')
+        })
+    
+    # Ordena por projeção
+    projections.sort(key=lambda x: x['projected'], reverse=True)
+    
+    # Cria gráfico de projeção
+    fig_projection = go.Figure()
+    
+    for proj in projections:
+        # Linha do valor atual até projeção
+        x_values = [today, election_date]
+        y_values = [proj['current'], proj['projected']]
+        
+        fig_projection.add_trace(go.Scatter(
+            x=x_values,
+            y=y_values,
+            mode='lines+markers',
+            name=proj['name'],
+            line=dict(width=3, color=proj['color']),
+            marker=dict(size=10),
+            hovertemplate=(
+                f"<b>{proj['name']}</b><br>" +
+                "Data: %{x|%d/%m/%Y}<br>" +
+                "Seguidores: %{y:,.0f}<br>" +
+                "<extra></extra>"
+            )
+        ))
+    
+    fig_projection.update_layout(
+        plot_bgcolor='#0f1419',
+        paper_bgcolor='#0f1419',
+        font=dict(color='#d1d5db', family='Inter'),
+        xaxis=dict(
+            gridcolor='#1f2937',
+            showgrid=True,
+            title='',
+            range=[today - timedelta(days=30), election_date + timedelta(days=30)]
+        ),
+        yaxis=dict(
+            gridcolor='#1f2937',
+            showgrid=True,
+            title='Seguidores Projetados'
+        ),
+        hovermode='x unified',
+        margin=dict(l=60, r=20, t=40, b=60),
+        height=500,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5
+        ),
+        annotations=[
+            dict(
+                x=election_date,
+                y=max(p['projected'] for p in projections) * 1.1,
+                text="📊 ELEIÇÃO 2026<br>04/10/2026",
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor='#ef4444',
+                ax=0,
+                ay=-40,
+                font=dict(size=12, color='#ef4444'),
+                bgcolor='#1f2937',
+                bordercolor='#ef4444',
+                borderwidth=2
+            )
+        ]
+    )
+
     # Dados do Notion
     conn_notion = sqlite3.connect('data/social_monitor.db')
     notion_latest = pd.read_sql_query("""
@@ -653,6 +754,14 @@ if len(df) > 0:
             
             html.H2("Perfis Instagram Monitorados", className='section-title'),
             dbc.Row(profile_cards),
+            
+            html.Div([
+                html.Div("Projeção de Seguidores até Eleição 2026", 
+                        style={'fontSize': '18px', 'fontWeight': '600', 'marginBottom': '24px', 'color': '#f7fafc'}),
+                html.P(f"🗳️ Faltam {days_until_election} dias para a eleição (04/10/2026)", 
+                      style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '16px'}),
+                dcc.Graph(figure=fig_projection, config={'displayModeBar': True, 'displaylogo': False})
+            ], className='chart-container'),
             
             html.Div([
                 html.Div("Evolução de Seguidores", 
