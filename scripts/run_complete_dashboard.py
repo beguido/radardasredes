@@ -626,13 +626,53 @@ if len(df) > 0:
     app.layout = html.Div([
         html.Div([
             html.Div([
-                html.H1("RADAR DAS REDES", className='main-title'),
+                html.H1("Radar da Cris", className='main-title'),
                 html.P("Análise Competitiva & Projeções Eleitorais 2026", className='subtitle')
             ], style={'maxWidth': '1600px', 'margin': '0 auto'})
         ], className='header-container'),
         
         html.Div([
-            html.H2("Perfis Monitorados", className='section-title'),
+            # Seção de Canais Monitorados
+            html.H2("Canais Monitorados", className='section-title'),
+            html.Div([
+                # WhatsApp
+                html.Div([
+                    html.Div("📱", style={'fontSize': '32px', 'marginBottom': '8px'}),
+                    html.Div("WhatsApp", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
+                    html.Div(f"{whatsapp_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
+                    html.Div(f"+{whatsapp_change:,}" if whatsapp_change >= 0 else f"{whatsapp_change:,}", 
+                            style={'fontSize': '12px', 'color': '#10b981' if whatsapp_change >= 0 else '#ef4444', 'marginTop': '4px'})
+                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
+                
+                # Endereços
+                html.Div([
+                    html.Div("🏠", style={'fontSize': '32px', 'marginBottom': '8px'}),
+                    html.Div("Endereços", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
+                    html.Div(f"{enderecos_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
+                    html.Div(f"+{enderecos_change:,}" if enderecos_change >= 0 else f"{enderecos_change:,}", 
+                            style={'fontSize': '12px', 'color': '#10b981' if enderecos_change >= 0 else '#ef4444', 'marginTop': '4px'})
+                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
+                
+                # Ofícios
+                html.Div([
+                    html.Div("📄", style={'fontSize': '32px', 'marginBottom': '8px'}),
+                    html.Div("Ofícios", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
+                    html.Div(f"{oficios_total:,}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
+                    html.Div(f"+{oficios_change:,}" if oficios_change >= 0 else f"{oficios_change:,}", 
+                            style={'fontSize': '12px', 'color': '#10b981' if oficios_change >= 0 else '#ef4444', 'marginTop': '4px'})
+                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
+                
+                # Instagram
+                html.Div([
+                    html.Div("📸", style={'fontSize': '32px', 'marginBottom': '8px'}),
+                    html.Div("Instagram", style={'fontSize': '14px', 'color': '#9ca3af', 'marginBottom': '4px'}),
+                    html.Div(f"{latest['followers'].sum():,.0f}", style={'fontSize': '24px', 'fontWeight': '700', 'color': '#f7fafc'}),
+                    html.Div("4 perfis", style={'fontSize': '12px', 'color': '#9ca3af', 'marginTop': '4px'})
+                ], style={'padding': '24px', 'background': '#1f2937', 'borderRadius': '12px', 'textAlign': 'center'}),
+                
+            ], style={'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit, minmax(180px, 1fr))', 'gap': '16px', 'marginBottom': '48px'}),
+            
+            html.H2("Perfis Instagram Monitorados", className='section-title'),
             dbc.Row(profile_cards),
             
             html.Div([
