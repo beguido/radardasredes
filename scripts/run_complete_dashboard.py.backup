@@ -265,18 +265,12 @@ if len(df) > 0:
         username = row['username']
         current = row['followers']
         
-        # 1 dia - Compara última coleta de hoje com última de ontem
-        from datetime import date
-        today = date.today()
-        yesterday = today - timedelta(days=1)
-        
-        today_data = df[(df['username'] == username) & (df['collected_at'].dt.date == today)]
-        yesterday_data = df[(df['username'] == username) & (df['collected_at'].dt.date == yesterday)]
-        
+        # 1 dia
+        day_data = df[(df['username'] == username) & (df['collected_at'] >= day_ago)]
         day_change_pct = 0
         day_change_abs = 0
-        if len(yesterday_data) > 0:
-            day_old = yesterday_data['followers'].iloc[-1]  # Última coleta de ontem
+        if len(day_data) > 1:
+            day_old = day_data['followers'].iloc[0]
             day_change_abs = current - day_old
             day_change_pct = (day_change_abs / day_old * 100) if day_old > 0 else 0
         
@@ -308,13 +302,8 @@ if len(df) > 0:
             quarter_change_pct = (quarter_change_abs / quarter_old * 100)
         
         photo_path = row.get('profile_picture_url', '')
-        if photo_path:
-            if photo_path.startswith('/static'):
-                photo_url = app.get_asset_url(photo_path.replace('/static/', ''))
-            elif photo_path.startswith('assets/'):
-                photo_url = app.get_asset_url(photo_path.replace('assets/', ''))
-            else:
-                photo_url = ''
+        if photo_path and photo_path.startswith('/static'):
+            photo_url = app.get_asset_url(photo_path.replace('/static/', ''))
         else:
             photo_url = ''
         
