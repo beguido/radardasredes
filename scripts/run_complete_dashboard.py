@@ -8,6 +8,16 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 import pandas as pd
 import sqlite3
+import os
+
+# Cria pasta data e banco se não existirem
+os.makedirs('data', exist_ok=True)
+if not os.path.exists('data/social_monitor.db'):
+    conn_init = sqlite3.connect('data/social_monitor.db')
+    conn_init.execute('CREATE TABLE IF NOT EXISTS instagram_profiles (id INTEGER PRIMARY KEY, username TEXT, followers INTEGER, following INTEGER, posts_count INTEGER, avg_engagement_rate REAL, profile_picture_url TEXT, collected_at TIMESTAMP)')
+    conn_init.execute('CREATE TABLE IF NOT EXISTS notion_stats (id INTEGER PRIMARY KEY, whatsapp INTEGER, enderecos INTEGER, oficios INTEGER, collected_at TIMESTAMP)')
+    conn_init.commit()
+    conn_init.close()
 from datetime import datetime, timedelta
 import os
 
