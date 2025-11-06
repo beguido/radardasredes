@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: radar-social-monitor
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn scripts.run_complete_dashboard:server --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DB_CONTATOS
+        sync: false
+      - key: NOTION_DB_DEMANDAS
+        sync: false
