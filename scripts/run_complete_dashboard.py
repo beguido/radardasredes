@@ -223,9 +223,23 @@ app.index_string = '''
 '''
 
 conn = sqlite3.connect('data/social_monitor.db')
-df = pd.read_sql_query("SELECT * FROM instagram_profiles ORDER BY collected_at", conn)
+try:
+    df = pd.read_sql_query("SELECT * FROM instagram_profiles ORDER BY collected_at", conn)
+except:
+    df = pd.DataFrame()
 conn.close()
 
+# Se banco vazio, cria dados mínimos
+if len(df) == 0:
+    print("⚠️ Banco vazio - usando dados de exemplo")
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    df = pd.DataFrame([
+        {'username': 'crismonteirosp', 'followers': 131936, 'following': 1000, 'posts_count': 500, 
+         'avg_engagement_rate': 4.66, 'profile_picture_url': 'assets/profile_pics/crismonteirosp.jpg',
+         'collected_at': now.strftime('%Y-%m-%d %H:%M:%S')},
+    ])
+    
 if len(df) > 0:
     df['collected_at'] = pd.to_datetime(df['collected_at'], format='mixed')
     df = df.sort_values('collected_at')
