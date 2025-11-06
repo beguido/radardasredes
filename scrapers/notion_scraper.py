@@ -1,9 +1,14 @@
+import os
 import requests
 from datetime import datetime
 import sqlite3
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente
+load_dotenv()
 
 # Token de integração do Notion
-NOTION_TOKEN = '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'
+NOTION_TOKEN = os.getenv('NOTION_TOKEN')
 NOTION_VERSION = '2022-06-28'
 
 # IDs das databases
@@ -11,7 +16,7 @@ CONTATOS_DB = '1f93392169d08196ab56f51082a83a45'
 DEMANDAS_DB = '1f83392169d080aeb702ee337d1c2015'
 
 def query_database_all(database_id):
-    """Query database do Notion com paginação (pega todos os resultados)"""
+    """Query database do Notion com paginação"""
     url = f"https://api.notion.com/v1/databases/{database_id}/query"
     
     headers = {
@@ -36,8 +41,6 @@ def query_database_all(database_id):
         all_results.extend(data['results'])
         has_more = data.get('has_more', False)
         start_cursor = data.get('next_cursor')
-        
-        print(f"   Carregados {len(all_results)} registros...")
     
     return all_results
 
@@ -49,39 +52,39 @@ def collect_notion_stats():
     print("="*60 + "\n")
     
     try:
-        # === CONTATOS (WhatsApp e Endereços) ===
+        # === CONTATOS ===
         print("🔍 Consultando base de Contatos...")
-        contatos_results = query_database_all(CONTATOS_DB)
+        contatos = query_database_all(CONTATOS_DB)
         
         whatsapp_count = 0
         enderecos_count = 0
         
-        for page in contatos_results:
+        for page in contatos:
             props = page['properties']
             
-            # Conta celulares (WhatsApp) - título da página
-            celular = props.get('Número de celular', {})
-            if celular.get('title'):
-                numeros = celular['title']
-                if numeros and len(numeros) > 0 and numeros[0].get('plain_text', '').strip():
-                    whatsapp_count += 1
+            # Conta celulares (título da página)
+            if 'Número de celular' in props:
+                title = props['Número de celular'].get('title', [])
+                if title and len(title) > 0:
+                    numero = title[0].get('plain_text', '').strip()
+                    if numero:
+                        whatsapp_count += 1
             
-            # Conta endereços preenchidos
-            endereco_prop = props.get('Endereço', {})
-            if endereco_prop.get('rich_text'):
-                endereco = endereco_prop['rich_text']
-                if endereco and len(endereco) > 0 and endereco[0].get('plain_text', '').strip():
-                    enderecos_count += 1
+            # Conta endereços
+            if 'Endereço' in props:
+                endereco = props['Endereço'].get('rich_text', [])
+                if endereco and len(endereco) > 0:
+                    texto = endereco[0].get('plain_text', '').strip()
+                    if texto:
+                        enderecos_count += 1
         
         print(f"✅ WhatsApp: {whatsapp_count:,}")
         print(f"✅ Endereços: {enderecos_count:,}")
         
         # === DEMANDAS (Ofícios) ===
         print("\n🔍 Consultando base de Demandas...")
-        demandas_results = query_database_all(DEMANDAS_DB)
-        
-        # Conta total de demandas (ofícios)
-        oficios_count = len(demandas_results)
+        demandas = query_database_all(DEMANDAS_DB)
+        oficios_count = len(demandas)
         
         print(f"✅ Ofícios: {oficios_count:,}")
         
@@ -108,24 +111,12 @@ def collect_notion_stats():
         conn.close()
         
         print("\n💾 Dados salvos no banco!")
-        print("="*60)
-        print(f"📊 TOTAIS:")
-        print(f"   📱 WhatsApp: {whatsapp_count:,}")
-        print(f"   🏠 Endereços: {enderecos_count:,}")
-        print(f"   📄 Ofícios: {oficios_count:,}")
         print("="*60 + "\n")
-        
-        return {
-            'whatsapp': whatsapp_count, 
-            'enderecos': enderecos_count,
-            'oficios': oficios_count
-        }
         
     except Exception as e:
         print(f"❌ Erro: {e}")
         import traceback
         traceback.print_exc()
-        return None
 
 if __name__ == '__main__':
     collect_notion_stats()

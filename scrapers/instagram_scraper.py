@@ -3,10 +3,38 @@ from apify_client import ApifyClient
 from dotenv import load_dotenv
 import sqlite3
 from datetime import datetime
+import requests
 
+# Carrega variáveis de ambiente do .env
 load_dotenv()
 
-client = ApifyClient(os.getenv('APIFY_API_KEY'))
+# Pega o token
+APIFY_TOKEN = os.getenv('APIFY_API_KEY') or os.getenv('APIFY_TOKEN')
+
+if not APIFY_TOKEN:
+    print("❌ ERRO: Token do Apify não encontrado!")
+    exit(1)
+
+client = ApifyClient(APIFY_TOKEN)
+
+def download_profile_pic(username, url):
+    """Baixa e salva foto de perfil localmente"""
+    try:
+        pics_dir = 'assets/profile_pics'
+        os.makedirs(pics_dir, exist_ok=True)
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        filename = f"{username}.jpg"
+        filepath = os.path.join(pics_dir, filename)
+        
+        with open(filepath, 'wb') as f:
+            f.write(response.content)
+        
+        return f"/assets/profile_pics/{filename}"
+    except:
+        return url  # Se falhar, retorna a URL original
 
 def scrape_instagram_profile(username):
     """Scrape completo de perfil do Instagram via Apify"""
@@ -35,12 +63,16 @@ def scrape_instagram_profile(username):
         
         first_item = results[0]
         
+        # Baixa a foto de perfil
+        original_url = first_item.get('profilePicUrl', '')
+        local_pic_path = download_profile_pic(username, original_url) if original_url else ''
+        
         profile_data = {
             'username': first_item.get('ownerUsername', username),
             'followers': first_item.get('followersCount', 0),
             'following': first_item.get('followsCount', 0),
             'posts_count': first_item.get('postsCount', 0),
-            'profile_picture': first_item.get('profilePicUrl', ''),
+            'profile_picture': local_pic_path,
         }
         
         posts_data = []
@@ -74,16 +106,12 @@ def scrape_instagram_profile(username):
         
         print(f"✅ @{username}: {profile_data['followers']:,} seguidores")
         print(f"   📊 Engajamento: {profile_data['avg_engagement_rate']:.2f}%")
-        print(f"   ❤️  Total likes: {profile_data['total_likes']:,}")
-        print(f"   💬 Total comentários: {profile_data['total_comments']:,}")
-        print(f"   📸 Foto: {profile_data['profile_picture'][:50]}...")
+        print(f"   📸 Foto salva localmente!")
         
         return profile_data
         
     except Exception as e:
         print(f"❌ Erro ao coletar @{username}: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 def save_to_database(profile_data):
