@@ -874,3 +874,9 @@ if __name__ == '__main__':
 
 # Expõe server para o Render
 server = app.server
+
+# Para deploy no Render
+server = app.server
+
+# Para deploy no Render
+server = app.server
